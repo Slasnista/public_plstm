@@ -1,7 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.compile.nanguardmode import NanGuardMode
+# from theano.compile.nanguardmode import NanGuardMode
 
 import lasagne
 from lasagne import nonlinearities
@@ -9,33 +9,37 @@ from lasagne import init
 from lasagne.utils import unroll_scan
 
 from lasagne.layers.base import MergeLayer, Layer
-from lasagne.layers.input import InputLayer
-from lasagne.layers.dense import DenseLayer
-from lasagne.layers import helper
+# from lasagne.layers.input import InputLayer
+# from lasagne.layers.dense import DenseLayer
+# from lasagne.layers import helper
 
 from lasagne.layers.recurrent import Gate
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from lasagne.random import get_rng
+# from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+# from lasagne.random import get_rng
 
 
 class PLSTMTimeGate(object):
     """
     """
     def __init__(self,
-                 Period=init.Uniform((10,100)),
-                 Shift=init.Uniform( (0., 1000.)),
+                 Period=init.Uniform((10, 100)),
+                 Shift=init.Uniform((0., 1000.)),
                  On_End=init.Constant(0.05)):
         self.Period = Period
         self.Shift = Shift
         self.On_End = On_End
 
+
 class PLSTMLayer(MergeLayer):
     r"""
     """
-    # GATE defaults: W_in=init.Normal(0.1), W_hid=init.Normal(0.1), W_cell=init.Normal(0.1), b=init.Constant(0.), nonlinearity=nonlinearities.sigmoid
+    # GATE defaults: W_in=init.Normal(0.1), W_hid=init.Normal(0.1),
+    # W_cell=init.Normal(0.1), b=init.Constant(0.),
+    # nonlinearity=nonlinearities.sigmoid
     def __init__(self, incoming, time_input, num_units,
                  ingate=Gate(b=lasagne.init.Constant(0)),
-                 forgetgate=Gate(b=lasagne.init.Constant(2), nonlinearity=nonlinearities.sigmoid),
+                 forgetgate=Gate(b=lasagne.init.Constant(2),
+                                 nonlinearity=nonlinearities.sigmoid),
                  timegate=PLSTMTimeGate(),
                  cell=Gate(W_cell=None, nonlinearity=nonlinearities.tanh),
                  outgate=Gate(),
@@ -57,28 +61,34 @@ class PLSTMLayer(MergeLayer):
                  **kwargs):
 
         # This layer inherits from a MergeLayer, because it can have four
-        # inputs - the layer input, the mask, the initial hidden state and the
-        # inital cell state. We will just provide the layer input as incomings,
+        # inputs :
+        #    - the layer input,
+        #    - the mask,
+        #    - the initial hidden state
+        #    - the inital cell state.
+        # We will just provide the layer input as incomings,
         # unless a mask input, inital hidden state or initial cell state was
         # provided.
+
         incomings = [incoming]
         # TIME STUFF
         incomings.append(time_input)
-        self.time_incoming_index = len(incomings)-1
+        self.time_incoming_index = len(incomings) - 1
 
-        self.mask_incoming_index = -2
-        self.hid_init_incoming_index = -2
-        self.cell_init_incoming_index = -2
-        #ADD TIME INPUT HERE
+        self.mask_incoming_index = - 2
+        self.hid_init_incoming_index = - 2
+        self.cell_init_incoming_index = - 2
+
+        # ADD TIME INPUT HERE
         if mask_input is not None:
             incomings.append(mask_input)
-            self.mask_incoming_index = len(incomings)-1
+            self.mask_incoming_index = len(incomings) - 1
         if isinstance(hid_init, Layer):
             incomings.append(hid_init)
-            self.hid_init_incoming_index = len(incomings)-1
+            self.hid_init_incoming_index = len(incomings) - 1
         if isinstance(cell_init, Layer):
             incomings.append(cell_init)
-            self.cell_init_incoming_index = len(incomings)-1
+            self.cell_init_incoming_index = len(incomings) - 1
 
         # Initialize parent layer
         super(PLSTMLayer, self).__init__(incomings, **kwargs)
@@ -105,8 +115,7 @@ class PLSTMLayer(MergeLayer):
 
         # Retrieve the dimensionality of the incoming layer
         input_shape = self.input_shapes[0]
-        time_shape = self.input_shapes[1]
-
+        # time_shape = self.input_shapes[1]
 
         if unroll_scan and input_shape[1] is None:
             raise ValueError("Input sequence length cannot be specified as "
@@ -124,12 +133,14 @@ class PLSTMLayer(MergeLayer):
                     self.add_param(gate.b, (num_units,),
                                    name="b_{}".format(gate_name),
                                    regularizable=False),
-                gate.nonlinearity)
+                    gate.nonlinearity)
 
         # PHASED LSTM: Initialize params for the time gate
         self.off_alpha = off_alpha
-        if timegate == None:
-            timegate = TimeGate()
+        if timegate is None:
+            timegate = PLSTMTimeGate()
+            # pb: change TimeGate() => PLSTMTimeGate()
+
         def add_timegate_params(gate, gate_name):
             """ Convenience function for adding layer parameters from a Gate
             instance. """
@@ -143,6 +154,7 @@ class PLSTMLayer(MergeLayer):
                                    name="On_End_{}".format(gate_name),
                                    trainable=learn_time_params[2]))
         print('Learnableness: {}'.format(learn_time_params))
+
         (self.period_timegate, self.shift_timegate,
          self.on_end_timegate) = add_timegate_params(timegate, 'timegate')
 
@@ -189,7 +201,8 @@ class PLSTMLayer(MergeLayer):
                 trainable=learn_init, regularizable=False)
 
         if bn:
-            self.bn = lasagne.layers.BatchNormLayer(input_shape, axes=(0,1))  # create BN layer for correct input shape
+            # create BN layer for correct input shape
+            self.bn = lasagne.layers.BatchNormLayer(input_shape, axes=(0, 1))
             self.params.update(self.bn.params)  # make BN params your params
         else:
             self.bn = False
@@ -237,6 +250,7 @@ class PLSTMLayer(MergeLayer):
         """
         # Retrieve the layer input
         input = inputs[0]
+
         # Retrieve the mask when it is supplied
         mask = None
         hid_init = None
@@ -262,7 +276,7 @@ class PLSTMLayer(MergeLayer):
         # (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
         # PHASED LSTM: Get shapes for time input and rearrange for the scan fn
-        time_input = time_mat.dimshuffle(1,0)
+        time_input = time_mat.dimshuffle(1, 0)
         time_seq_len, time_num_batch = time_input.shape
         seq_len, num_batch, _ = input.shape
 
@@ -290,14 +304,17 @@ class PLSTMLayer(MergeLayer):
             print('Using {} for off_slope.'.format(self.off_alpha))
             off_slope = self.off_alpha
 
+        # XXX: what does this mean ?
         # PHASED LSTM: Pregenerate broadcast vars.
         #   Same neuron in different batches has same shift and period.  Also,
         #   precalculate the middle (on_mid) and end (on_end) of the open-phase
         #   ramp.
-        shift_broadcast = self.shift_timegate.dimshuffle(['x',0])
-        period_broadcast = T.abs_(self.period_timegate.dimshuffle(['x',0]))
-        on_mid_broadcast = T.abs_(self.on_end_timegate.dimshuffle(['x',0])) * 0.5 * period_broadcast
-        on_end_broadcast = T.abs_(self.on_end_timegate.dimshuffle(['x',0])) * period_broadcast
+        shift_broadcast = self.shift_timegate.dimshuffle(['x', 0])
+        period_broadcast = T.abs_(self.period_timegate.dimshuffle(['x', 0]))
+        on_mid_broadcast = T.abs_(
+            self.on_end_timegate.dimshuffle(['x', 0])) * 0.5 * period_broadcast
+        on_end_broadcast = T.abs_(
+            self.on_end_timegate.dimshuffle(['x', 0])) * period_broadcast
 
         if self.precompute_input:
             # Because the input is given for all time steps, we can
@@ -306,10 +323,11 @@ class PLSTMLayer(MergeLayer):
             # (n_time_steps, n_batch, 4*num_units).
             input = T.dot(input, W_in_stacked) + b_stacked
 
+        # XXX: 4 for 4 gates ?
         # At each call to scan, input_n will be (n_time_steps, 4*num_units).
         # We define a slicing function that extract the input to each LSTM gate
         def slice_w(x, n):
-            return x[:, n*self.num_units:(n+1)*self.num_units]
+            return x[:, n * self.num_units:(n + 1) * self.num_units]
 
         # Create single recurrent computation step function
         # input_n is the n'th vector of the input
@@ -333,8 +351,8 @@ class PLSTMLayer(MergeLayer):
 
             if self.peepholes:
                 # Compute peephole connections
-                ingate += cell_previous*self.W_cell_to_ingate
-                forgetgate += cell_previous*self.W_cell_to_forgetgate
+                ingate += cell_previous * self.W_cell_to_ingate
+                forgetgate += cell_previous * self.W_cell_to_forgetgate
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)
@@ -342,43 +360,55 @@ class PLSTMLayer(MergeLayer):
             cell_input = self.nonlinearity_cell(cell_input)
 
             # Mix in new stuff
-            cell = forgetgate*cell_previous + ingate*cell_input
+            cell = forgetgate * cell_previous + ingate * cell_input
 
             if self.peepholes:
-                outgate += cell*self.W_cell_to_outgate
+                outgate += cell * self.W_cell_to_outgate
             outgate = self.nonlinearity_outgate(outgate)
 
             # Compute new hidden unit activation
-            hid = outgate*self.nonlinearity(cell)
+            hid = outgate * self.nonlinearity(cell)
             return [cell, hid]
 
         # PHASED LSTM: The actual calculation of the time gate
         def calc_time_gate(time_input_n):
+
             # Broadcast the time across all units
-            t_broadcast = time_input_n.dimshuffle([0,'x'])
+            t_broadcast = time_input_n.dimshuffle([0, 'x'])
+
             # Get the time within the period
-            in_cycle_time = T.mod(t_broadcast + shift_broadcast, period_broadcast)
+            in_cycle_time = T.mod(
+                t_broadcast + shift_broadcast, period_broadcast)
+
             # Find the phase
             is_up_phase = T.le(in_cycle_time, on_mid_broadcast)
-            is_down_phase = T.gt(in_cycle_time, on_mid_broadcast)*T.le(in_cycle_time, on_end_broadcast)
+            is_down_phase = T.gt(in_cycle_time,
+                                 on_mid_broadcast) * T.le(in_cycle_time,
+                                                          on_end_broadcast)
+
             # Set the mask
-            sleep_wake_mask = T.switch(is_up_phase, in_cycle_time/on_mid_broadcast,
-                                T.switch(is_down_phase,
-                                    (on_end_broadcast-in_cycle_time)/on_mid_broadcast,
-                                        off_slope*(in_cycle_time/period_broadcast)))
+            sleep_wake_mask = T.switch(
+                is_up_phase,
+                in_cycle_time / on_mid_broadcast,
+                T.switch(is_down_phase,
+                         (on_end_broadcast - in_cycle_time) / on_mid_broadcast,
+                         off_slope * (in_cycle_time / period_broadcast)))
 
             return sleep_wake_mask
 
         # PHASED LSTM: Mask the updates based on the time phase
-        def step_masked(input_n, time_input_n, mask_n, cell_previous, hid_previous, *args):
-            cell, hid = step(input_n, time_input_n, cell_previous, hid_previous, *args)
+        def step_masked(input_n, time_input_n, mask_n,
+                        cell_previous, hid_previous, *args):
+            cell, hid = step(input_n, time_input_n,
+                             cell_previous, hid_previous, *args)
 
             # Get time gate openness
             sleep_wake_mask = calc_time_gate(time_input_n)
 
             # Sleep if off, otherwise stay a bit on
-            cell = sleep_wake_mask*cell + (1.-sleep_wake_mask)*cell_previous
-            hid = sleep_wake_mask*hid + (1.-sleep_wake_mask)*hid_previous
+            cell = sleep_wake_mask * cell + \
+                (1. - sleep_wake_mask) * cell_previous
+            hid = sleep_wake_mask * hid + (1. - sleep_wake_mask) * hid_previous
 
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
@@ -393,7 +423,7 @@ class PLSTMLayer(MergeLayer):
             # add a broadcastable dimension
             mask = mask.dimshuffle(1, 0, 'x')
         else:
-            mask = T.ones_like(time_input).dimshuffle(0,1,'x')
+            mask = T.ones_like(time_input).dimshuffle(0, 1, 'x')
 
         sequences = [input, time_input, mask]
         step_fun = step_masked
@@ -407,8 +437,12 @@ class PLSTMLayer(MergeLayer):
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             hid_init = T.dot(ones, self.hid_init)
 
+        non_seqs = [
+            W_hid_stacked,
+            self.period_timegate,
+            self.shift_timegate,
+            self.on_end_timegate]
 
-        non_seqs = [W_hid_stacked, self.period_timegate, self.shift_timegate, self.on_end_timegate]
         # The "peephole" weight matrices are only used when self.peepholes=True
         if self.peepholes:
             non_seqs += [self.W_cell_to_ingate,
@@ -423,6 +457,7 @@ class PLSTMLayer(MergeLayer):
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
             input_shape = self.input_shapes[0]
+
             # Explicitly unroll the recurrence instead of using scan
             cell_out, hid_out = unroll_scan(
                 fn=step_fun,
